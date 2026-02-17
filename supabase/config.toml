@@ -1,1 +1,10 @@
 project_id = "lyvrbromiqvxorbrxxen"
+
+[functions.analyze-lab-report]
+verify_jwt = false
+
+[functions.check-prescription]
+verify_jwt = false
+
+[functions.analyze-wellness]
+verify_jwt = false
