@@ -14,7 +14,195 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      audit_logs: {
+        Row: {
+          action: string
+          created_at: string
+          details: Json | null
+          id: string
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      lab_reports: {
+        Row: {
+          created_at: string
+          id: string
+          raw_text: string | null
+          report_date: string
+          report_name: string
+          results: Json
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          raw_text?: string | null
+          report_date?: string
+          report_name?: string
+          results?: Json
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          raw_text?: string | null
+          report_date?: string
+          report_name?: string
+          results?: Json
+          user_id?: string
+        }
+        Relationships: []
+      }
+      prescriptions: {
+        Row: {
+          check_result: Json | null
+          created_at: string
+          dosage: string | null
+          frequency: string | null
+          id: string
+          is_active: boolean
+          medicine_name: string
+          user_id: string
+        }
+        Insert: {
+          check_result?: Json | null
+          created_at?: string
+          dosage?: string | null
+          frequency?: string | null
+          id?: string
+          is_active?: boolean
+          medicine_name: string
+          user_id: string
+        }
+        Update: {
+          check_result?: Json | null
+          created_at?: string
+          dosage?: string | null
+          frequency?: string | null
+          id?: string
+          is_active?: boolean
+          medicine_name?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          date_of_birth: string | null
+          full_name: string | null
+          gender: string | null
+          id: string
+          phone: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          date_of_birth?: string | null
+          full_name?: string | null
+          gender?: string | null
+          id?: string
+          phone?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          date_of_birth?: string | null
+          full_name?: string | null
+          gender?: string | null
+          id?: string
+          phone?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      vitals: {
+        Row: {
+          created_at: string
+          id: string
+          notes: string | null
+          recorded_at: string
+          unit: string
+          user_id: string
+          value: number
+          vital_type: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          recorded_at?: string
+          unit: string
+          user_id: string
+          value: number
+          vital_type: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          recorded_at?: string
+          unit?: string
+          user_id?: string
+          value?: number
+          vital_type?: string
+        }
+        Relationships: []
+      }
+      wellness_logs: {
+        Row: {
+          ai_advice: string | null
+          created_at: string
+          id: string
+          logged_at: string
+          mood_score: number
+          risk_score: number | null
+          sleep_hours: number
+          stress_level: number
+          user_id: string
+        }
+        Insert: {
+          ai_advice?: string | null
+          created_at?: string
+          id?: string
+          logged_at?: string
+          mood_score: number
+          risk_score?: number | null
+          sleep_hours: number
+          stress_level: number
+          user_id: string
+        }
+        Update: {
+          ai_advice?: string | null
+          created_at?: string
+          id?: string
+          logged_at?: string
+          mood_score?: number
+          risk_score?: number | null
+          sleep_hours?: number
+          stress_level?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
