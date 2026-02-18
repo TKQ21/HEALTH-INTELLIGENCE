@@ -38,6 +38,30 @@ export type Database = {
         }
         Relationships: []
       }
+      health_logs: {
+        Row: {
+          created_at: string
+          id: string
+          metric_type: string
+          user_id: string
+          value: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          metric_type: string
+          user_id: string
+          value: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          metric_type?: string
+          user_id?: string
+          value?: number
+        }
+        Relationships: []
+      }
       lab_reports: {
         Row: {
           created_at: string
