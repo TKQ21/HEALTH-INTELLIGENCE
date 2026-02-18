@@ -7,112 +7,124 @@ import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { format, subDays } from "date-fns";
+import { format } from "date-fns";
 
-type TimeRange = "7" | "30" | "90";
-type VitalType = "blood_sugar_fasting" | "blood_sugar_pp" | "bp_systolic" | "bp_diastolic" | "weight" | "hba1c";
+type MetricType = "glucose_fasting" | "glucose_pp" | "bp_systolic" | "bp_diastolic" | "weight" | "hba1c";
+type ViewMode = "7" | "30" | "90";
 
-interface VitalEntry {
+interface HealthLog {
   id: string;
-  vital_type: string;
+  metric_type: string;
   value: number;
-  unit: string;
-  recorded_at: string;
+  created_at: string;
 }
+
+const METRIC_LABELS: Record<MetricType, string> = {
+  glucose_fasting: "Blood Sugar (Fasting)",
+  glucose_pp: "Blood Sugar (PP)",
+  bp_systolic: "BP Systolic",
+  bp_diastolic: "BP Diastolic",
+  weight: "Weight",
+  hba1c: "HbA1c",
+};
+
+const METRIC_UNITS: Record<MetricType, string> = {
+  glucose_fasting: "mg/dL",
+  glucose_pp: "mg/dL",
+  bp_systolic: "mmHg",
+  bp_diastolic: "mmHg",
+  weight: "kg",
+  hba1c: "%",
+};
 
 const ChronicMonitor = () => {
   const { user } = useAuth();
-  const [range, setRange] = useState<TimeRange>("7");
-  const [vitals, setVitals] = useState<VitalEntry[]>([]);
+  const [view, setView] = useState<ViewMode>("7");
+  const [logs, setLogs] = useState<HealthLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
-  const [addType, setAddType] = useState<VitalType>("blood_sugar_fasting");
+  const [addType, setAddType] = useState<MetricType>("glucose_fasting");
   const [addValue, setAddValue] = useState("");
 
-  const unitMap: Record<VitalType, string> = {
-    blood_sugar_fasting: "mg/dL", blood_sugar_pp: "mg/dL",
-    bp_systolic: "mmHg", bp_diastolic: "mmHg",
-    weight: "kg", hba1c: "%",
-  };
-
-  const loadVitals = async () => {
+  const fetchLogs = async () => {
     if (!user) return;
     setLoading(true);
-    const since = subDays(new Date(), parseInt(range)).toISOString();
+    const limit = parseInt(view);
+
+    // Fetch last N entries per metric type by getting all recent logs
     const { data, error } = await supabase
-      .from("vitals")
+      .from("health_logs")
       .select("*")
       .eq("user_id", user.id)
-      .gte("recorded_at", since)
-      .order("recorded_at", { ascending: true });
-    if (error) toast.error("Failed to load vitals");
-    else setVitals(data || []);
+      .order("created_at", { ascending: true })
+      .limit(limit * 6); // 6 metric types max
+
+    if (error) toast.error("Failed to load health logs");
+    else setLogs((data as HealthLog[]) || []);
     setLoading(false);
   };
 
-  useEffect(() => { loadVitals(); }, [range, user]);
+  useEffect(() => { fetchLogs(); }, [view, user]);
 
-  const handleAddVital = async () => {
+  const handleAddLog = async () => {
     if (!user || !addValue) return;
-    const { error } = await supabase.from("vitals").insert({
+    const { error } = await supabase.from("health_logs").insert({
       user_id: user.id,
-      vital_type: addType,
+      metric_type: addType,
       value: parseFloat(addValue),
-      unit: unitMap[addType],
     });
     if (error) toast.error("Failed to save");
     else {
-      toast.success("Vital recorded!");
+      toast.success("Health log recorded!");
       setAddValue("");
       setShowAdd(false);
-      loadVitals();
+      fetchLogs();
     }
   };
 
   const sugarData = useMemo(() => {
     const days = new Map<string, { fasting?: number; pp?: number }>();
-    vitals.filter(v => v.vital_type.startsWith("blood_sugar")).forEach(v => {
-      const day = format(new Date(v.recorded_at), "MMM dd");
+    logs.filter(l => l.metric_type.startsWith("glucose")).forEach(l => {
+      const day = format(new Date(l.created_at), "MMM dd");
       const existing = days.get(day) || {};
-      if (v.vital_type === "blood_sugar_fasting") existing.fasting = v.value;
-      else existing.pp = v.value;
+      if (l.metric_type === "glucose_fasting") existing.fasting = l.value;
+      else existing.pp = l.value;
       days.set(day, existing);
     });
     return Array.from(days.entries()).map(([day, vals]) => ({ day, ...vals }));
-  }, [vitals]);
+  }, [logs]);
 
   const bpData = useMemo(() => {
     const days = new Map<string, { systolic?: number; diastolic?: number }>();
-    vitals.filter(v => v.vital_type.startsWith("bp_")).forEach(v => {
-      const day = format(new Date(v.recorded_at), "MMM dd");
+    logs.filter(l => l.metric_type.startsWith("bp_")).forEach(l => {
+      const day = format(new Date(l.created_at), "MMM dd");
       const existing = days.get(day) || {};
-      if (v.vital_type === "bp_systolic") existing.systolic = v.value;
-      else existing.diastolic = v.value;
+      if (l.metric_type === "bp_systolic") existing.systolic = l.value;
+      else existing.diastolic = l.value;
       days.set(day, existing);
     });
     return Array.from(days.entries()).map(([day, vals]) => ({ day, ...vals }));
-  }, [vitals]);
+  }, [logs]);
 
-  // Alert logic
-  const sugarAlerts = useMemo(() => {
-    const fasting = vitals.filter(v => v.vital_type === "blood_sugar_fasting").slice(-3);
+  const alerts = useMemo(() => {
+    const fasting = logs.filter(l => l.metric_type === "glucose_fasting").slice(-3);
     const rising = fasting.length >= 3 && fasting.every((v, i) => i === 0 || v.value >= fasting[i - 1].value);
-    const bpHigh = vitals.filter(v => v.vital_type === "bp_systolic" && v.value >= 140);
+    const bpHigh = logs.filter(l => l.metric_type === "bp_systolic" && l.value >= 140);
     return { sugarRising: rising && fasting.length >= 3, bpHigh: bpHigh.length >= 2 };
-  }, [vitals]);
+  }, [logs]);
 
   return (
     <div className="space-y-5" onClick={e => e.stopPropagation()}>
       <div className="flex items-center justify-between">
         <div className="flex gap-2">
-          {(["7", "30", "90"] as TimeRange[]).map(r => (
+          {(["7", "30", "90"] as ViewMode[]).map(r => (
             <button
               key={r}
-              onClick={() => setRange(r)}
+              onClick={() => setView(r)}
               className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                range === r ? "bg-neon-cyan/20 text-neon-cyan border border-neon-cyan/40" : "bg-muted/50 text-muted-foreground border border-border hover:border-neon-cyan/20"
+                view === r ? "bg-neon-cyan/20 text-neon-cyan border border-neon-cyan/40" : "bg-muted/50 text-muted-foreground border border-border hover:border-neon-cyan/20"
               }`}
-            >{r} Days</button>
+            >{r} Entries</button>
           ))}
         </div>
         <Button size="sm" onClick={() => setShowAdd(!showAdd)} className="bg-neon-cyan/20 text-neon-cyan border border-neon-cyan/30 hover:bg-neon-cyan/30 text-xs">
@@ -124,31 +136,27 @@ const ChronicMonitor = () => {
         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="glass rounded-lg p-4 border border-neon-cyan/20 space-y-3">
           <select
             value={addType}
-            onChange={e => setAddType(e.target.value as VitalType)}
+            onChange={e => setAddType(e.target.value as MetricType)}
             className="w-full bg-muted/50 border border-border rounded-lg p-2 text-foreground text-xs"
           >
-            <option value="blood_sugar_fasting">Blood Sugar (Fasting)</option>
-            <option value="blood_sugar_pp">Blood Sugar (PP)</option>
-            <option value="bp_systolic">BP Systolic</option>
-            <option value="bp_diastolic">BP Diastolic</option>
-            <option value="weight">Weight</option>
-            <option value="hba1c">HbA1c</option>
+            {Object.entries(METRIC_LABELS).map(([key, label]) => (
+              <option key={key} value={key}>{label}</option>
+            ))}
           </select>
           <div className="flex gap-2">
             <Input
               type="number"
-              placeholder={`Value (${unitMap[addType]})`}
+              placeholder={`Value (${METRIC_UNITS[addType]})`}
               value={addValue}
               onChange={e => setAddValue(e.target.value)}
               className="bg-muted/50 border-border text-foreground text-xs"
             />
-            <Button onClick={handleAddVital} className="bg-neon-cyan text-primary-foreground text-xs">Save</Button>
+            <Button onClick={handleAddLog} className="bg-neon-cyan text-primary-foreground text-xs">Save</Button>
           </div>
         </motion.div>
       )}
 
-      {/* Alerts */}
-      {sugarAlerts.sugarRising && (
+      {alerts.sugarRising && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass rounded-lg p-3 border border-neon-orange/40 animate-orange-pulse flex items-center gap-3">
           <AlertTriangle className="w-5 h-5 text-neon-orange flex-shrink-0" />
           <div>
@@ -157,7 +165,7 @@ const ChronicMonitor = () => {
           </div>
         </motion.div>
       )}
-      {sugarAlerts.bpHigh && (
+      {alerts.bpHigh && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass rounded-lg p-3 border border-neon-red/40 animate-red-pulse flex items-center gap-3">
           <Activity className="w-5 h-5 text-neon-red flex-shrink-0" />
           <div>
@@ -169,9 +177,9 @@ const ChronicMonitor = () => {
 
       {loading ? (
         <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 text-neon-cyan animate-spin" /></div>
-      ) : vitals.length === 0 ? (
+      ) : logs.length === 0 ? (
         <div className="text-center py-8">
-          <p className="text-muted-foreground text-sm">No vitals recorded yet. Start logging your daily readings!</p>
+          <p className="text-muted-foreground text-sm">No health logs recorded yet. Start logging your daily readings!</p>
         </div>
       ) : (
         <>
