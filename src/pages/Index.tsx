@@ -126,10 +126,16 @@ const Index = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 1 }}
-            className="mt-12 flex items-center gap-2 text-xs text-muted-foreground"
+            className="mt-12 flex flex-col items-center gap-2 text-xs text-muted-foreground"
           >
-            <Shield className="w-3.5 h-3.5" aria-hidden="true" />
-            <span>Not a medical device. For informational purposes only.</span>
+            <div className="flex items-center gap-2">
+              <Shield className="w-3.5 h-3.5" aria-hidden="true" />
+              <span>Not a medical device. For informational purposes only.</span>
+            </div>
+            <div className="text-center mt-4">
+              <p>© 2026 Mohd Kaif</p>
+              <p className="mt-1">Built with AI assistance</p>
+            </div>
           </motion.footer>
         </main>
       </div>
